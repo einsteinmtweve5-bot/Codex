@@ -1,0 +1,588 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://hugqwdfledpcsbupoagc.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1Z3F3ZGZsZWRwY3NidXBvYWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MTcyMzIsImV4cCI6MjA4MDQ5MzIzMn0.ZWdUiYZaRLa0HZvzGVl2SBSkgkzBUrYXMjknp7rWYRM',
+  );
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => AppTheme(),
+      child: const FluxGuardApp(),
+    ),
+  );
+}
+
+class AppTheme extends ChangeNotifier {
+  bool isDark = true;
+
+  void toggle() {
+    isDark = !isDark;
+    notifyListeners();
+  }
+}
+
+class FluxGuardApp extends StatelessWidget {
+  const FluxGuardApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Provider.of<AppTheme>(context);
+
+    return MaterialApp(
+      title: 'FluxGuard',
+      debugShowCheckedModeBanner: false,
+      themeMode: theme.isDark ? ThemeMode.dark : ThemeMode.light,
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        textTheme: GoogleFonts.interTextTheme(),
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.indigo,
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: Colors.grey[900],
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+      ),
+      home: const LoginPage(),
+    );
+  }
+}
+
+// Login Page (black input ink)
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final emailCtrl = TextEditingController();
+  final passCtrl = TextEditingController();
+  bool loading = false;
+
+  Future<void> login() async {
+    setState(() => loading = true);
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: emailCtrl.text.trim(),
+        password: passCtrl.text,
+      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+    if (mounted) setState(() => loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.grey[200],
+                child: const Icon(Icons.shield, size: 60, color: Colors.indigo),
+              ),
+              const SizedBox(height: 32),
+              Text(
+                'FluxGuard',
+                style: GoogleFonts.inter(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Smart Gas Monitoring',
+                style: GoogleFonts.inter(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 48),
+              TextField(
+                controller: emailCtrl,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: 'Email Address',
+                  labelStyle: const TextStyle(color: Colors.black),
+                  prefixIcon: const Icon(Icons.email, color: Colors.black54),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black54),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.indigo),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passCtrl,
+                obscureText: true,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  labelStyle: const TextStyle(color: Colors.black),
+                  prefixIcon: const Icon(Icons.lock, color: Colors.black54),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black54),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.indigo),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {},
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(color: Colors.indigo),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: loading ? null : login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          'Sign In',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () {},
+                child: Text(
+                  'New to FluxGuard? Sign Up',
+                  style: GoogleFonts.inter(color: Colors.indigo),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Home Screen with Bottom Navigation
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = [
+    const DashboardPage(),
+    const ComingSoonPage(title: 'Add Reading'),
+    const ComingSoonPage(title: 'Reports'),
+    const ComingSoonPage(title: 'Alerts'),
+    const SettingsPage(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.indigo,
+        unselectedItemColor: Colors.grey,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_circle_outline),
+            label: 'Add Reading',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Reports',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Alerts',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Coming Soon Page
+class ComingSoonPage extends StatelessWidget {
+  final String title;
+
+  const ComingSoonPage({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.construction, size: 100, color: Colors.grey),
+          const SizedBox(height: 24),
+          Text(
+            title,
+            style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Coming Soon',
+            style: GoogleFonts.inter(fontSize: 20, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Dashboard Page (fancy with your data)
+class DashboardPage extends StatelessWidget {
+  const DashboardPage({super.key});
+
+  final String meterId = '955afea6-0e6e-43c3-88af-b7bf3d4a8485';
+
+  @override
+  Widget build(BuildContext context) {
+    final supabase = Supabase.instance.client;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Fancy Credit Card
+          StreamBuilder(
+            stream: supabase
+                .from('meters')
+                .stream(primaryKey: ['id'])
+                .eq('id', meterId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text('No meter data'),
+                  ),
+                );
+              }
+              final meter = snapshot.data![0];
+              final credit =
+                  double.tryParse(meter['current_credit'].toString()) ?? 80.0;
+              final valveOpen = meter['valve_status'] == true;
+
+              return Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                color: Colors.indigo[900],
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Current Credit',
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '\$${credit.toStringAsFixed(2)}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(
+                            valveOpen ? Icons.check_circle : Icons.cancel,
+                            color: valveOpen
+                                ? Colors.greenAccent
+                                : Colors.redAccent,
+                            size: 32,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            valveOpen ? 'Valve OPEN' : 'Valve CLOSED',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 32),
+
+          Text(
+            'Recent Top-ups',
+            style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder(
+            stream: supabase
+                .from('top_ups')
+                .stream(primaryKey: ['id'])
+                .eq('meter_id', meterId)
+                .order('timestamp', ascending: false)
+                .limit(5),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Text('No top-ups yet');
+              }
+              return Column(
+                children: snapshot.data!.map((topUp) {
+                  final amount =
+                      double.tryParse(topUp['amount'].toString()) ?? 0.0;
+                  final method = topUp['method'] ?? 'unknown';
+                  final timestamp = DateTime.parse(
+                    topUp['timestamp'],
+                  ).toLocal();
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.add_circle,
+                        color: Colors.green,
+                      ),
+                      title: Text(
+                        '+$amount',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(method),
+                      trailing: Text(timestamp.toString().substring(0, 16)),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 32),
+
+          Text(
+            'Recent Alerts',
+            style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder(
+            stream: supabase
+                .from('alerts')
+                .stream(primaryKey: ['id'])
+                .eq('meter_id', meterId)
+                .order('timestamp', ascending: false)
+                .limit(5),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Text('No alerts');
+              }
+              return Column(
+                children: snapshot.data!.map((alert) {
+                  final type = alert['type'] ?? 'Unknown';
+                  final message = alert['message'] ?? 'No message';
+                  final timestamp = DateTime.parse(
+                    alert['timestamp'],
+                  ).toLocal();
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    color: Colors.red[50],
+                    child: ListTile(
+                      leading: const Icon(Icons.warning, color: Colors.red),
+                      title: Text(
+                        type,
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(message),
+                      trailing: Text(timestamp.toString().substring(0, 16)),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Settings Page (only Dark Mode toggle works, others "Coming Soon")
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  void _showComingSoon(BuildContext context) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming Soon')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Provider.of<AppTheme>(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Settings',
+            style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 32),
+
+          Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Dark Mode', style: GoogleFonts.inter(fontSize: 20)),
+                      Switch(
+                        value: theme.isDark,
+                        onChanged: (value) => theme.toggle(),
+                        activeThumbColor: Colors.indigo,
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 32),
+                  ListTile(
+                    title: Text('Profile'),
+                    subtitle: Text('Edit your profile'),
+                    onTap: () => _showComingSoon(context),
+                  ),
+                  ListTile(
+                    title: Text('Notifications'),
+                    subtitle: Text('Manage notification preferences'),
+                    onTap: () => _showComingSoon(context),
+                  ),
+                  ListTile(
+                    title: Text('Billing & Subscription'),
+                    subtitle: Text('Manage your plan'),
+                    onTap: () => _showComingSoon(context),
+                  ),
+                  ListTile(
+                    title: Text('Help & Support'),
+                    onTap: () => _showComingSoon(context),
+                  ),
+                  ListTile(
+                    title: Text('About FluxGuard'),
+                    onTap: () => _showComingSoon(context),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.red),
+                    title: Text(
+                      'Log Out',
+                      style: GoogleFonts.inter(color: Colors.red),
+                    ),
+                    onTap: () async {
+                      await Supabase.instance.client.auth.signOut();
+                      if (context.mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
